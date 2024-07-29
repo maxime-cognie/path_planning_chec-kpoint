@@ -3,6 +3,8 @@
 #include <cmath>
 #include <memory>
 #include <string>
+#include <thread>
+#include <unordered_map>
 
 #include "nav2_dijkstra_planner/nav2_dijkstra_planner.hpp"
 
@@ -297,9 +299,76 @@ bool DijkstraGlobalPlanner::dijkstraShortestPath(
   RCLCPP_INFO(node_->get_logger(), "Dijkstra: Done with initialization");
 
   /** YOUR CODE STARTS HERE */
+  using namespace std::chrono_literals;
+  while (!open_list.empty() && !path_found) {
+    // sort the open_list (descending order to pop the closest node)
+    std::sort(open_list.begin(), open_list.end(),
+      [](const auto &a, const auto &b) {
+        return a.second > b.second;}
+    );
+    // set the current node to the closest node from the start
+    current_node = open_list.back().first;
+    open_list.pop_back();
 
+    // add the current_node to the list of the already visited node
+    closed_list.insert(current_node);
+
+    // verify if the goal is reached
+    if (current_node == goal_cell_index) {
+      path_found = true;
+    }
+
+    // populate neighbors map with neighbors of the current node
+    std::unordered_map<int, double> neighbors = find_neighbors(
+      current_node, costmap_flat);
+    
+    double g_cost;
+    bool in_open_list;
+    // iterate through neighbors to determine the closest node to the goal
+    for (auto neighbour : neighbors) {
+      if (closed_list.count(neighbour.first)) {
+        continue;
+      }
+      // distance from the start point to the neighbour node
+      g_cost = g_costs[current_node] + neighbour.second;
+      in_open_list = false;
+
+      for (size_t i = 0; i < open_list.size(); i++) {
+        // update distance value if the neighbour is alread inside the open_list 
+        // but with a greater distance value
+        if (neighbour.first == open_list[i].first) {
+          in_open_list = true;
+          if (g_cost < open_list[i].second)
+            g_costs[neighbour.first] = g_cost;
+            parents[neighbour.first] = current_node;
+            open_list[i].second = g_cost;
+          break;
+        }
+      }      
+
+      // if the neighbour isn't in the open_list add it
+      if (!in_open_list) {
+        g_costs[neighbour.first] = g_cost;
+        parents[neighbour.first] = current_node;
+        open_list.push_back(std::make_pair(neighbour.first, g_cost));
+      }
+    }
+  }
+  // after iterating through all the node inside the costmap, if no path found return false
+  if (!path_found) {
+    return false;
+  }
+  
+  // reconstruct the shortest path by picking up the parent node of the current node
+  // starting from the goal_index to the start_index
+  shortest_path.push_back(goal_cell_index);
+  current_node = goal_cell_index;
+  while (current_node != start_cell_index) {
+    shortest_path.insert(shortest_path.begin(), parents[current_node]);
+    current_node = parents[current_node];
+  }
   /** YOUR CODE ENDS HERE */
-
+  
   return true;
 }
 

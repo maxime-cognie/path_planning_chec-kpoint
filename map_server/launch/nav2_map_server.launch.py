@@ -22,10 +22,10 @@ def generate_launch_description():
         Node(
             package='rviz2',
             executable='rviz2',
-            output='screen',
+            output='log',
             name='rviz2_node',
             parameters=[{'use_sim_time': True}],
-            arguments=['-d', cartographer_rviz_config_file_path]),
+            arguments=['-d', cartographer_rviz_config_file_path, '--ros-args', '--log-level', "FATAL"]),
 
         Node(
             package='nav2_lifecycle_manager',

@@ -23,14 +23,6 @@ def generate_launch_description():
     return LaunchDescription([
 
         Node(
-            package='rviz2',
-            executable='rviz2',
-            output='screen',
-            name='rviz2_node',
-            parameters=[{'use_sim_time': True}],
-            arguments=['-d', rviz_config_file_path]),
-
-        Node(
             package='nav2_controller',
             executable='controller_server',
             name='controller_server',
